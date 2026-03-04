@@ -2,33 +2,58 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
 import AddModal from '../AddModal';
+import ConfirmDialog from '../ConfirmDialog';
 
 const fmt = (n, sym = '$') =>
   `${sym} ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const CAT_COLORS = {
-  Rent: '#6B7280', Freelance: '#22C55E', Bills: '#EF4444', Health: '#06B6D4',
-  Groceries: '#16A34A', Shopping: '#EC4899', Education: '#A855F7', Food: '#F59E0B',
-  Travel: '#3B82F6', Entertainment: '#8B5CF6', Other: '#6B7280',
+  Salary: '#22C55E', Freelance: '#10B981', Business: '#06B6D4', Investment: '#3B82F6',
+  Bonus: '#8B5CF6', Gift: '#EC4899', 'Rental Income': '#F59E0B', Consulting: '#14B8A6',
+  Commission: '#84CC16', Bills: '#EF4444', Education: '#A855F7', Entertainment: '#F97316',
+  'Food & Dining': '#F59E0B', Groceries: '#16A34A', Health: '#06B6D4',
+  'Housing / Rent': '#6B7280', Shopping: '#EC4899', Subscriptions: '#8B5CF6',
+  Transport: '#64748B', Travel: '#3B82F6', Utilities: '#78716C', Other: '#5C5448',
 };
 
-const HomeTab = () => {
+const greeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+};
+
+function StatCard({ label, value, sub, valueColor, iconPath, iconBg, iconColor, action }) {
+  return (
+    <div className="card" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ color: '#8C8578', fontSize: '0.82rem', fontWeight: 500 }}>{label}</span>
+        <div style={{ width: 34, height: 34, borderRadius: 10, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <svg style={{ width: 17, height: 17, color: iconColor }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d={iconPath} />
+          </svg>
+        </div>
+      </div>
+      <div>
+        <p style={{ fontSize: '1.4rem', fontWeight: 700, color: valueColor || '#F5F0EB' }}>{value}</p>
+        {sub && <p style={{ color: '#8C8578', fontSize: '0.72rem', marginTop: 2 }}>{sub}</p>}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+export default function HomeTab() {
   const { user } = useAuth();
   const sym = user?.currencySymbol || '$';
-  const [summary, setSummary] = useState({ income: 0, expense: 0 });
+  const [summary,      setSummary]      = useState({ income: 0, expense: 0 });
   const [transactions, setTransactions] = useState([]);
-  const [loans, setLoans] = useState({ lent: 0, owed: 0 });
-  const [budgets, setBudgets] = useState([]);
+  const [loans,        setLoans]        = useState({ lent: 0, owed: 0 });
+  const [budgets,      setBudgets]      = useState([]);
   const [totalBalance, setTotalBalance] = useState(0);
-  const [modal, setModal] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const greeting = () => {
-    const h = new Date().getHours();
-    if (h < 12) return 'Good morning,';
-    if (h < 18) return 'Good afternoon,';
-    return 'Good evening,';
-  };
+  const [modal,        setModal]        = useState(null);
+  const [confirmDelete,setConfirmDelete]= useState(null);
+  const [loading,      setLoading]      = useState(true);
 
   const load = useCallback(async () => {
     try {
@@ -40,138 +65,249 @@ const HomeTab = () => {
         api.get('/accounts/total'),
       ]);
       setSummary(s.data);
-      setTransactions(t.data.slice(0, 5));
+      setTransactions(t.data);
       setLoans(l.data);
       setBudgets(b.data);
       setTotalBalance(acc.data.total || 0);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const handleDeleteConfirmed = async () => {
+    if (!confirmDelete) return;
+    try {
+      await api.delete(`/transactions/${confirmDelete.id}`);
+      setTransactions((prev) => prev.filter((t) => t.id !== confirmDelete.id));
+    } catch (e) { console.error(e); }
+    finally { setConfirmDelete(null); }
+  };
 
-  const activeBudgets = budgets.filter((b) => b.budgetLimit > 0);
-  const totalBudget = activeBudgets.reduce((s, b) => s + b.budgetLimit, 0);
-
-  return (
-    <div className="px-4 pt-6 pb-4">
-      <div className="flex items-center justify-between mb-6 animate-fade-up">
-        <div>
-          <p className="text-text-secondary text-sm">{greeting()}</p>
-          <h1 className="text-2xl font-bold text-text-primary uppercase">{user?.customerName}</h1>
-        </div>
-        <div className="w-11 h-11 rounded-full bg-accent flex items-center justify-center flex-shrink-0">
-          <span className="font-bold text-lg" style={{ color: '#0A0805' }}>{user?.customerName?.[0]?.toUpperCase()}</span>
-        </div>
-      </div>
-
-      <div className="card p-5 mb-4 animate-fade-up stagger-1">
-        <p className="text-text-secondary text-sm mb-1">Total Balance</p>
-        <h2 className="text-3xl font-bold text-text-primary mb-4">{fmt(totalBalance, sym)}</h2>
-        <p className="text-text-secondary text-xs mb-3">This month</p>
-        <div className="flex gap-6">
-          <div className="flex items-center gap-2">
-            <svg className="w-4 h-4 text-income flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-            </svg>
-            <div>
-              <p className="text-xs text-text-secondary">Income</p>
-              <p className="text-income font-semibold text-sm">{fmt(summary.income, sym)}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <svg className="w-4 h-4 text-expense flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-            </svg>
-            <div>
-              <p className="text-xs text-text-secondary">Expense</p>
-              <p className="text-expense font-semibold text-sm">{fmt(summary.expense, sym)}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 mb-5 animate-fade-up stagger-2">
-        <div className="card p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            <span className="text-text-secondary text-xs">Budgets</span>
-          </div>
-          <p className="text-text-primary font-bold text-lg">{activeBudgets.length} active</p>
-          <p className="text-muted text-xs">of {fmt(totalBudget, sym)}</p>
-        </div>
-        <div className="card p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-            </svg>
-            <span className="text-text-secondary text-xs">Loans</span>
-          </div>
-          <div className="flex justify-between">
-            <div>
-              <p className="text-muted text-xs">Lent</p>
-              <p className="text-income font-semibold text-xs">{fmt(loans.lent, sym)}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-muted text-xs">Owed</p>
-              <p className="text-expense font-semibold text-xs">{fmt(loans.owed, sym)}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between mb-3 animate-fade-up stagger-3">
-        <h3 className="text-text-primary font-semibold">Recent Transactions</h3>
-        <button onClick={() => setModal('transaction')} className="text-accent text-sm font-medium hover:underline">+ Add</button>
-      </div>
-
-      <div className="flex flex-col gap-2 animate-fade-up stagger-4">
-        {transactions.length === 0 ? (
-          <div className="card p-6 text-center">
-            <p className="text-text-secondary text-sm mb-3">No transactions yet.</p>
-            <button onClick={() => setModal('transaction')} className="text-accent text-sm font-medium hover:underline">Add your first one</button>
-          </div>
-        ) : transactions.map((t) => (
-          <div key={t.id} className="card p-3.5 flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
-              style={{ backgroundColor: CAT_COLORS[t.category] || '#6B7280' }}
-            >
-              {t.category?.[0]}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-text-primary text-sm font-semibold truncate uppercase">{t.title}</p>
-              <p className="text-muted text-xs">{t.category} · {t.date}</p>
-            </div>
-            <span className={`text-sm font-bold flex-shrink-0 ${t.type === 'income' ? 'text-income' : 'text-expense'}`}>
-              {t.type === 'income' ? '+' : '-'}{fmt(t.amount, sym)}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      <button
-        onClick={() => setModal('transaction')}
-        className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-accent hover:bg-accent-dark shadow-lg shadow-accent/30 flex items-center justify-center text-2xl font-light transition-colors z-40"
-        style={{ color: '#0A0805' }}
-      >+</button>
-
-      {modal && <AddModal type={modal} onClose={() => setModal(null)} onSave={load} />}
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+      <div style={{ width: 32, height: 32, border: '2.5px solid #F4927A', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
-};
 
-export default HomeTab;
+  const activeBudgets = budgets.filter((b) => b.budgetLimit > 0);
+
+  return (
+    <div style={{ padding: '24px 28px', width: '100%' }} className="animate-fade-in">
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <p style={{ color: '#8C8578', fontSize: '0.85rem' }}>{greeting()},</p>
+          <h1 style={{ color: '#F5F0EB', fontWeight: 700, fontSize: 'clamp(1.4rem, 3vw, 2rem)', lineHeight: 1.1 }}>
+            {user?.customerName}
+          </h1>
+        </div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button onClick={() => setModal('loan')} className="btn-primary">
+            <svg style={{ width: 15, height: 15 }} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Loan
+          </button>
+          <button onClick={() => setModal('transaction')} className="btn-primary">
+            <svg style={{ width: 15, height: 15 }} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Transaction
+          </button>
+        </div>
+      </div>
+
+      {/* Stat cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 24 }}>
+        <StatCard label="Total Balance" value={fmt(totalBalance, sym)} sub="across all accounts"
+          iconBg="rgba(244,146,122,0.15)" iconColor="#F4927A"
+          iconPath="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+        <StatCard label="Income" value={fmt(summary.income, sym)} sub="This month"
+          valueColor="#22C55E" iconBg="rgba(34,197,94,0.15)" iconColor="#22C55E"
+          iconPath="M5 10l7-7m0 0l7 7m-7-7v18" />
+        <StatCard label="Expenses" value={fmt(summary.expense, sym)} sub="This month"
+          valueColor="#EF4444" iconBg="rgba(239,68,68,0.15)" iconColor="#EF4444"
+          iconPath="M19 14l-7 7m0 0l-7-7m7 7V3" />
+        {/* Loans card */}
+        <div className="card" style={{ padding: '18px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ color: '#8C8578', fontSize: '0.82rem', fontWeight: 500 }}>Loans</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ borderRadius: 10, background: 'rgba(34,197,94,0.1)', padding: '10px 12px' }}>
+              <p style={{ color: '#5C5448', fontSize: '0.65rem', marginBottom: 3 }}>Lent</p>
+              <p style={{ color: '#22C55E', fontWeight: 700, fontSize: '0.9rem' }}>{fmt(loans.lent, sym)}</p>
+            </div>
+            <div style={{ borderRadius: 10, background: 'rgba(239,68,68,0.1)', padding: '10px 12px' }}>
+              <p style={{ color: '#5C5448', fontSize: '0.65rem', marginBottom: 3 }}>Owed</p>
+              <p style={{ color: '#EF4444', fontWeight: 700, fontSize: '0.9rem' }}>{fmt(loans.owed, sym)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Transactions + Budgets */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2fr) minmax(240px,1fr)', gap: 16 }}>
+        {/* Transactions table */}
+        <div className="card" style={{ overflow: 'hidden', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #1E1A14' }}>
+            <div>
+              <h2 style={{ color: '#F5F0EB', fontWeight: 600, fontSize: '0.95rem' }}>All Transactions</h2>
+              <p style={{ color: '#8C8578', fontSize: '0.72rem', marginTop: 2 }}>{transactions.length} total records</p>
+            </div>
+            <button onClick={() => setModal('transaction')} className="btn-primary" style={{ fontSize: '0.78rem', padding: '7px 14px' }}>
+              <svg style={{ width: 13, height: 13 }} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              New
+            </button>
+          </div>
+
+          {/* Table header */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: '110px 1fr 110px 120px 36px',
+            gap: 12, padding: '10px 20px', borderBottom: '1px solid #1E1A14',
+          }}>
+            {['Date', 'Description', 'Category', 'Amount', ''].map((h, i) => (
+              <span key={i} style={{
+                color: '#5C5448', fontSize: '0.65rem', fontWeight: 700,
+                textTransform: 'uppercase', letterSpacing: '0.08em',
+                textAlign: i === 3 ? 'right' : 'left',
+              }}>{h}</span>
+            ))}
+          </div>
+
+          <div className="scrollable" style={{ maxHeight: 420 }}>
+            {transactions.length === 0 ? (
+              <div style={{ padding: '48px 20px', textAlign: 'center' }}>
+                <div style={{ width: 44, height: 44, borderRadius: 14, background: '#1C1814', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                  <svg style={{ width: 22, height: 22, color: '#5C5448' }} fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+                <p style={{ color: '#8C8578', fontSize: '0.85rem', marginBottom: 8 }}>No transactions yet</p>
+                <button onClick={() => setModal('transaction')} style={{ color: '#F4927A', fontSize: '0.82rem', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                  Add your first one
+                </button>
+              </div>
+            ) : transactions.map((t) => (
+              <div key={t.id}
+                style={{
+                  display: 'grid', gridTemplateColumns: '110px 1fr 110px 120px 36px',
+                  gap: 12, padding: '12px 20px', borderBottom: '1px solid #1E1A14',
+                  alignItems: 'center', cursor: 'default',
+                }}
+                className="group"
+                onMouseEnter={(e) => e.currentTarget.style.background = '#1C1814'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                <span style={{ color: '#8C8578', fontSize: '0.78rem' }}>{t.date}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                  <div style={{
+                    width: 30, height: 30, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: CAT_COLORS[t.category] || '#5C5448', color: '#fff', fontSize: '0.7rem', fontWeight: 700, flexShrink: 0,
+                  }}>
+                    {t.category?.[0]}
+                  </div>
+                  <span style={{ color: '#F5F0EB', fontSize: '0.85rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
+                </div>
+                <span style={{ color: '#8C8578', fontSize: '0.78rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.category}</span>
+                <span style={{
+                  fontSize: '0.85rem', fontWeight: 600, textAlign: 'right',
+                  color: t.type === 'income' ? '#22C55E' : '#EF4444',
+                }}>
+                  {t.type === 'income' ? '+' : '−'}{fmt(t.amount, sym)}
+                </span>
+                <button
+                  onClick={() => setConfirmDelete(t)}
+                  title="Delete"
+                  style={{
+                    width: 30, height: 30, borderRadius: 7, border: 'none', cursor: 'pointer',
+                    background: 'transparent', color: '#5C5448', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    opacity: 0, transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#EF4444'; e.currentTarget.style.opacity = '1'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#5C5448'; e.currentTarget.style.opacity = '0'; }}
+                  ref={(el) => {
+                    if (el) {
+                      const row = el.closest('[class*=group]') || el.parentElement;
+                      if (row) {
+                        row.addEventListener('mouseenter', () => { el.style.opacity = '1'; });
+                        row.addEventListener('mouseleave', () => { el.style.opacity = '0'; });
+                      }
+                    }
+                  }}
+                >
+                  <svg style={{ width: 13, height: 13 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Budgets panel */}
+        <div className="card" style={{ overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #1E1A14' }}>
+            <div>
+              <h2 style={{ color: '#F5F0EB', fontWeight: 600, fontSize: '0.95rem' }}>Budgets</h2>
+              <p style={{ color: '#8C8578', fontSize: '0.72rem', marginTop: 2 }}>{activeBudgets.length} active this month</p>
+            </div>
+            <button onClick={() => setModal('budget')} className="btn-primary" style={{ fontSize: '0.78rem', padding: '7px 14px' }}>
+              <svg style={{ width: 13, height: 13 }} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              Add
+            </button>
+          </div>
+          <div className="scrollable" style={{ padding: '16px 20px', maxHeight: 460, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {activeBudgets.length === 0 ? (
+              <div style={{ padding: '32px 0', textAlign: 'center' }}>
+                <p style={{ color: '#8C8578', fontSize: '0.82rem', marginBottom: 8 }}>No budgets yet</p>
+                <button onClick={() => setModal('budget')} style={{ color: '#F4927A', fontSize: '0.8rem', background: 'none', border: 'none', cursor: 'pointer' }}>Create one →</button>
+              </div>
+            ) : activeBudgets.map((b) => {
+              const spent = b.spent || 0;
+              const pct   = Math.min((spent / b.budgetLimit) * 100, 100);
+              const over  = spent > b.budgetLimit;
+              const barClr = over ? '#EF4444' : pct >= 80 ? '#F59E0B' : '#22C55E';
+              return (
+                <div key={b.id}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: b.color, flexShrink: 0 }} />
+                      <span style={{ color: '#F5F0EB', fontSize: '0.85rem', fontWeight: 500 }}>{b.category}</span>
+                    </div>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: over ? '#EF4444' : '#8C8578' }}>{Math.round(pct)}%</span>
+                  </div>
+                  <div style={{ width: '100%', height: 6, borderRadius: 3, background: '#1E1A14', overflow: 'hidden', marginBottom: 4 }}>
+                    <div style={{ width: `${pct}%`, height: '100%', background: barClr, borderRadius: 3, transition: 'width 0.5s' }} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#5C5448', fontSize: '0.7rem' }}>{fmt(spent, sym)}</span>
+                    <span style={{ color: '#5C5448', fontSize: '0.7rem' }}>{fmt(b.budgetLimit, sym)}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {modal && <AddModal type={modal} onClose={() => setModal(null)} onSave={load} />}
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Delete Transaction"
+          message={`Delete "${confirmDelete.title}"? This cannot be undone.`}
+          onConfirm={handleDeleteConfirmed}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
