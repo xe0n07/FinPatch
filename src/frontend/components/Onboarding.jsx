@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import logo from '../assets/logo1.png';
 
 const CURRENCIES = [
   { code: 'USD', symbol: '$', flag: '🇺🇸' },
@@ -49,9 +50,7 @@ const Onboarding = () => {
     <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-bg">
       <div className="w-full max-w-sm animate-fade-up">
         <div className="flex flex-col items-center gap-3 mb-8">
-          <div className="w-16 h-16 rounded-[18px] bg-accent flex items-center justify-center shadow-lg shadow-accent/20">
-            <span className="text-2xl font-bold" style={{ color: '#0A0805' }}>F</span>
-          </div>
+          <img src={logo} alt="FinPatch logo" className="w-16 h-16 object-contain shadow-lg shadow-accent/10" />
           <div className="text-center">
             <h2 className="text-xl font-bold text-text-primary">Finpatch</h2>
             <p className="text-text-secondary text-sm">Your personal finance hub</p>

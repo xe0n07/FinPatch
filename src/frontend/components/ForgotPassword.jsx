@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import logo from '../assets/logo1.png';
 
 const ForgotPassword = () => {
   const { register, handleSubmit, formState: { errors } } = useForm();
@@ -13,7 +14,7 @@ const ForgotPassword = () => {
     <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-bg">
       <div className="w-full max-w-sm animate-fade-up">
         <div className="flex flex-col items-center gap-3 mb-8">
-          <span className="text-5xl">🔑</span>
+          <img src={logo} alt="FinPatch logo" className="w-16 h-16 object-contain" />
           <div className="text-center">
             <h1 className="text-2xl font-bold text-text-primary">Reset Password</h1>
             <p className="text-text-secondary text-sm mt-1">We'll send a reset link to your email</p>

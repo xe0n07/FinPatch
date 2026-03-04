@@ -46,14 +46,15 @@ function StatCard({ label, value, sub, valueColor, iconPath, iconBg, iconColor, 
 export default function HomeTab() {
   const { user } = useAuth();
   const sym = user?.currencySymbol || '$';
-  const [summary,      setSummary]      = useState({ income: 0, expense: 0 });
-  const [transactions, setTransactions] = useState([]);
-  const [loans,        setLoans]        = useState({ lent: 0, owed: 0 });
-  const [budgets,      setBudgets]      = useState([]);
-  const [totalBalance, setTotalBalance] = useState(0);
-  const [modal,        setModal]        = useState(null);
-  const [confirmDelete,setConfirmDelete]= useState(null);
-  const [loading,      setLoading]      = useState(true);
+  const [summary,         setSummary]         = useState({ income: 0, expense: 0 });
+  const [transactions,    setTransactions]    = useState([]);
+  const [loans,           setLoans]           = useState({ lent: 0, owed: 0 });
+  const [budgets,         setBudgets]         = useState([]);
+  const [totalBalance,    setTotalBalance]    = useState(0);
+  const [modal,           setModal]           = useState(null);
+  const [editingTx,       setEditingTx]       = useState(null);
+  const [confirmDelete,   setConfirmDelete]   = useState(null);
+  const [loading,         setLoading]         = useState(true);
 
   const load = useCallback(async () => {
     try {
@@ -62,13 +63,14 @@ export default function HomeTab() {
         api.get('/transactions'),
         api.get('/loans/summary'),
         api.get('/budgets'),
-        api.get('/accounts/total'),
+        api.get('/accounts'),
       ]);
       setSummary(s.data);
       setTransactions(t.data);
       setLoans(l.data);
       setBudgets(b.data);
-      setTotalBalance(acc.data.total || 0);
+      const total = acc.data.reduce((sum, account) => sum + (account.balance || 0), 0);
+      setTotalBalance(total);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }, []);
@@ -167,7 +169,7 @@ export default function HomeTab() {
 
           {/* Table header */}
           <div style={{
-            display: 'grid', gridTemplateColumns: '110px 1fr 110px 120px 36px',
+            display: 'grid', gridTemplateColumns: '110px 1fr 110px 120px 70px',
             gap: 12, padding: '10px 20px', borderBottom: '1px solid #1E1A14',
           }}>
             {['Date', 'Description', 'Category', 'Amount', ''].map((h, i) => (
@@ -195,7 +197,7 @@ export default function HomeTab() {
             ) : transactions.map((t) => (
               <div key={t.id}
                 style={{
-                  display: 'grid', gridTemplateColumns: '110px 1fr 110px 120px 36px',
+                  display: 'grid', gridTemplateColumns: '110px 1fr 110px 120px 70px',
                   gap: 12, padding: '12px 20px', borderBottom: '1px solid #1E1A14',
                   alignItems: 'center', cursor: 'default',
                 }}
@@ -220,30 +222,56 @@ export default function HomeTab() {
                 }}>
                   {t.type === 'income' ? '+' : '−'}{fmt(t.amount, sym)}
                 </span>
-                <button
-                  onClick={() => setConfirmDelete(t)}
-                  title="Delete"
-                  style={{
-                    width: 30, height: 30, borderRadius: 7, border: 'none', cursor: 'pointer',
-                    background: 'transparent', color: '#5C5448', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    opacity: 0, transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#EF4444'; e.currentTarget.style.opacity = '1'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#5C5448'; e.currentTarget.style.opacity = '0'; }}
-                  ref={(el) => {
-                    if (el) {
-                      const row = el.closest('[class*=group]') || el.parentElement;
-                      if (row) {
-                        row.addEventListener('mouseenter', () => { el.style.opacity = '1'; });
-                        row.addEventListener('mouseleave', () => { el.style.opacity = '0'; });
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    onClick={() => { setEditingTx(t); setModal('transaction'); }}
+                    title="Edit"
+                    style={{
+                      width: 28, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer',
+                      background: 'transparent', color: '#5C5448', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      opacity: 0, transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(244,146,122,0.12)'; e.currentTarget.style.color = '#F4927A'; e.currentTarget.style.opacity = '1'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#5C5448'; e.currentTarget.style.opacity = '0'; }}
+                    ref={(el) => {
+                      if (el) {
+                        const row = el.closest('[class*=group]') || el.parentElement;
+                        if (row) {
+                          row.addEventListener('mouseenter', () => { el.style.opacity = '1'; });
+                          row.addEventListener('mouseleave', () => { el.style.opacity = '0'; });
+                        }
                       }
-                    }
-                  }}
-                >
-                  <svg style={{ width: 13, height: 13 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+                    }}
+                  >
+                    <svg style={{ width: 12, height: 12 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(t)}
+                    title="Delete"
+                    style={{
+                      width: 28, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer',
+                      background: 'transparent', color: '#5C5448', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      opacity: 0, transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#EF4444'; e.currentTarget.style.opacity = '1'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#5C5448'; e.currentTarget.style.opacity = '0'; }}
+                    ref={(el) => {
+                      if (el) {
+                        const row = el.closest('[class*=group]') || el.parentElement;
+                        if (row) {
+                          row.addEventListener('mouseenter', () => { el.style.opacity = '1'; });
+                          row.addEventListener('mouseleave', () => { el.style.opacity = '0'; });
+                        }
+                      }
+                    }}
+                  >
+                    <svg style={{ width: 12, height: 12 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -297,7 +325,7 @@ export default function HomeTab() {
         </div>
       </div>
 
-      {modal && <AddModal type={modal} onClose={() => setModal(null)} onSave={load} />}
+      {modal && <AddModal type={modal} onClose={() => { setModal(null); setEditingTx(null); }} onSave={load} editing={editingTx} />}
       {confirmDelete && (
         <ConfirmDialog
           title="Delete Transaction"

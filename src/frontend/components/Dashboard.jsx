@@ -5,7 +5,9 @@ import HomeTab     from './tabs/HomeTab';
 import AnalysisTab from './tabs/AnalysisTab';
 import BudgetTab   from './tabs/BudgetTab';
 import AccountsTab from './tabs/AccountsTab';
+import LoansTab    from './tabs/LoansTab';
 import ProfileTab  from './tabs/ProfileTab';
+import logo from '../assets/logo1.png';
 
 const SIDEBAR_W = 230;
 
@@ -18,6 +20,8 @@ const NAV = [
     d: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01' },
   { path: 'accounts', label: 'Accounts',
     d: 'M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z' },
+  { path: 'loans',    label: 'Loans',
+    d: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
   { path: 'profile',  label: 'Profile',
     d: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
 ];
@@ -39,7 +43,8 @@ function Sidebar({ onClose, tab, onNav, user, onLogout }) {
       <div style={S.header}>
         <div style={S.logoWrap}>
           <div style={S.logoBox}>
-            <span style={{ fontWeight: 900, fontSize: '0.85rem', color: '#0A0805' }}>F</span>
+               {/* small logo image */}
+               <img src={logo} alt="FinPatch" style={{ width: 20, height: 20, objectFit: 'contain' }} />
           </div>
           <div>
             <p style={{ color: '#F5F0EB', fontWeight: 700, fontSize: '0.84rem', lineHeight: 1 }}>Finpatch</p>
@@ -229,6 +234,7 @@ export default function Dashboard() {
             <Route path="analysis" element={<AnalysisTab />} />
             <Route path="budget"   element={<BudgetTab />} />
             <Route path="accounts" element={<AccountsTab />} />
+            <Route path="loans"    element={<LoansTab />} />
             <Route path="profile"  element={<ProfileTab />} />
             <Route path="*"        element={<Navigate to="home" replace />} />
           </Routes>

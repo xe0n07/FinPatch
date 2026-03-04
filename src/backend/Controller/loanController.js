@@ -20,6 +20,37 @@ export const create = async (req, res) => {
   }
 };
 
+export const update = async (req, res) => {
+  try {
+    const { personName, amount, type, date, description } = req.body;
+    const l = await Loan.findOne({ where: { id: req.params.id, userId: req.user.id } });
+    if (!l) return res.status(404).json({ message: 'Loan not found' });
+    
+    await l.update({
+      personName: personName || l.personName,
+      amount: amount ? parseFloat(amount) : l.amount,
+      type: type || l.type,
+      date: date || l.date,
+      description: description || l.description,
+    });
+    
+    res.status(200).json(l);
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+};
+
+export const settle = async (req, res) => {
+  try {
+    const l = await Loan.findOne({ where: { id: req.params.id, userId: req.user.id } });
+    if (!l) return res.status(404).json({ message: 'Loan not found' });
+    await l.destroy();
+    res.status(200).json({ message: 'Loan settled and removed successfully' });
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+};
+
 export const remove = async (req, res) => {
   try {
     const l = await Loan.findOne({ where: { id: req.params.id, userId: req.user.id } });

@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useState, useEffect, useRef } from 'react';
+import logo from '../assets/logo1.png';
 
 /* ─── tiny primitives ─── */
 const Ico = ({ d, size = 20, sw = 1.8 }) => (
@@ -87,9 +88,7 @@ function DashPreview() {
         {/* Mini sidebar */}
         <div style={{ width: 130, background: '#0f0d0a', borderRight: '1px solid #1E1A14', padding: '14px 10px', display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 14 }}>
-            <div style={{ width: 22, height: 22, borderRadius: 6, background: '#F4927A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <span style={{ fontWeight: 900, fontSize: '0.6rem', color: '#0A0805' }}>F</span>
-            </div>
+            <img src={logo} alt="FinPatch" style={{ width: 22, height: 22, objectFit: 'contain', borderRadius: 6 }} />
             <span style={{ color: '#F5F0EB', fontWeight: 700, fontSize: '0.72rem' }}>Finpatch</span>
           </div>
           {[{ l: 'Home', active: true }, { l: 'Analysis' }, { l: 'Budget' }, { l: 'Accounts' }].map(i => (
@@ -195,9 +194,7 @@ export default function LandingPage() {
         <div style={{ maxWidth: 1160, margin: '0 auto', padding: '0 24px', height: 62, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <div style={{ width: 32, height: 32, borderRadius: 9, background: '#F4927A', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(244,146,122,0.35)', flexShrink: 0 }}>
-              <span style={{ fontWeight: 900, fontSize: '0.88rem', color: '#0A0805' }}>F</span>
-            </div>
+            <img src={logo} alt="Finpatch logo" style={{ width: 32, height: 32, borderRadius: 9, boxShadow: '0 4px 14px rgba(244,146,122,0.35)', flexShrink: 0 }} />
             <span style={{ fontWeight: 800, fontSize: '1.15rem', color: '#F5F0EB' }}>Finpatch</span>
           </div>
 

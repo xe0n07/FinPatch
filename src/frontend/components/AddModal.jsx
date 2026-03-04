@@ -1,7 +1,9 @@
 import { useForm } from 'react-hook-form';
-import { useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
+import { transactionSchema, budgetSchema, accountSchema, loanSchema } from '../lib/validationSchemas';
 
 const INCOME_CATS   = ['Salary', 'Freelance', 'Business', 'Investment', 'Bonus', 'Gift', 'Rental Income', 'Consulting', 'Commission', 'Other'];
 const EXPENSE_CATS  = ['Bills', 'Education', 'Entertainment', 'Food & Dining', 'Groceries', 'Health', 'Housing / Rent', 'Shopping', 'Subscriptions', 'Transport', 'Travel', 'Utilities', 'Other'];
@@ -51,31 +53,123 @@ function ColorPicker({ colors, value, onChange }) {
   );
 }
 
-export default function AddModal({ type, onClose, onSave }) {
-  const { register, handleSubmit, watch, formState: { errors } } = useForm({
-    defaultValues: { date: new Date().toISOString().split('T')[0] },
-  });
+export default function AddModal({ type, onClose, onSave, editing = null }) {
   const { user }   = useAuth();
   const sym        = user?.currencySymbol || '$';
+  const [accounts, setAccounts] = useState([]);
   const [loading, setLoading]   = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [txType,   setTxType]   = useState('expense');
-  const [loanType, setLoanType] = useState('lent');
-  const [color, setColor]       = useState(type === 'account' ? ACCOUNT_COLORS[0] : BUDGET_COLORS[0]);
+  const [txType,   setTxType]   = useState(editing?.type || 'expense');
+  const [loanType, setLoanType] = useState(editing?.type || 'lent');
+  const [color, setColor]       = useState(editing?.color || (type === 'account' ? ACCOUNT_COLORS[0] : BUDGET_COLORS[0]));
+
+  // Load accounts for transaction selection
+  useEffect(() => {
+    if (type === 'transaction') {
+      api.get('/accounts').then(r => setAccounts(r.data)).catch(e => console.error(e));
+    }
+  }, [type]);
+
+  // Choose schema based on type
+  const getSchema = () => {
+    if (type === 'transaction') return transactionSchema;
+    if (type === 'budget') return budgetSchema;
+    if (type === 'account') return accountSchema;
+    if (type === 'loan') return loanSchema;
+  };
+
+  const { register, handleSubmit, formState: { errors }, watch } = useForm({
+    resolver: zodResolver(getSchema()),
+    defaultValues: editing ? {
+      title: editing.title,
+      personName: editing.personName,
+      amount: editing.amount,
+      accountType: editing.type,
+      budgetLimit: editing.budgetLimit,
+      category: editing.category,
+      date: editing.date,
+      name: editing.name,
+      description: editing.description,
+      accountId: editing.accountId,
+    } : {
+      date: new Date().toISOString().split('T')[0],
+    },
+  });
 
   const categories = txType === 'income' ? INCOME_CATS : EXPENSE_CATS;
 
   const onSubmit = async (data) => {
     setLoading(true); setErrorMsg('');
     try {
-      if (type === 'transaction')
-        await api.post('/transactions', { title: data.title, amount: data.amount, type: txType, category: data.category, date: data.date });
-      else if (type === 'budget')
-        await api.post('/budgets', { category: data.category, budgetLimit: data.budgetLimit, color });
-      else if (type === 'account')
-        await api.post('/accounts', { name: data.name, type: data.accountType, balance: data.balance || 0, color });
-      else if (type === 'loan')
-        await api.post('/loans', { personName: data.personName, amount: data.amount, type: loanType, date: data.date, description: data.description });
+      if (type === 'transaction') {
+        if (editing) {
+          await api.patch(`/transactions/${editing.id}`, {
+            title: data.title,
+            amount: data.amount,
+            type: txType,
+            category: data.category,
+            date: data.date,
+            accountId: data.accountId,
+          });
+        } else {
+          await api.post('/transactions', {
+            title: data.title,
+            amount: data.amount,
+            type: txType,
+            category: data.category,
+            date: data.date,
+            accountId: data.accountId,
+          });
+        }
+      } else if (type === 'budget') {
+        if (editing) {
+          await api.patch(`/budgets/${editing.id}`, {
+            category: data.category,
+            budgetLimit: data.budgetLimit,
+            color,
+          });
+        } else {
+          await api.post('/budgets', {
+            category: data.category,
+            budgetLimit: data.budgetLimit,
+            color,
+          });
+        }
+      } else if (type === 'account') {
+        if (editing) {
+          await api.patch(`/accounts/${editing.id}`, {
+            name: data.name,
+            type: data.accountType,
+            balance: data.balance || 0,
+            color,
+          });
+        } else {
+          await api.post('/accounts', {
+            name: data.name,
+            type: data.accountType,
+            balance: data.balance || 0,
+            color,
+          });
+        }
+      } else if (type === 'loan') {
+        if (editing) {
+          await api.patch(`/loans/${editing.id}`, {
+            personName: data.personName,
+            amount: data.amount,
+            type: loanType,
+            date: data.date,
+            description: data.description,
+          });
+        } else {
+          await api.post('/loans', {
+            personName: data.personName,
+            amount: data.amount,
+            type: loanType,
+            date: data.date,
+            description: data.description,
+          });
+        }
+      }
       onSave(); onClose();
     } catch (e) {
       setErrorMsg(e.response?.data?.message || 'Failed to save. Please try again.');
@@ -101,8 +195,12 @@ export default function AddModal({ type, onClose, onSave }) {
           padding: '18px 22px 16px', borderBottom: '1px solid #1E1A14', flexShrink: 0,
         }}>
           <div>
-            <h2 style={{ color: '#F5F0EB', fontWeight: 700, fontSize: '1.05rem', lineHeight: 1.2 }}>{TITLES[type]}</h2>
-            <p style={{ color: '#8C8578', fontSize: '0.75rem', marginTop: 3 }}>Fill in the details below</p>
+            <h2 style={{ color: '#F5F0EB', fontWeight: 700, fontSize: '1.05rem', lineHeight: 1.2 }}>
+              {editing ? `Edit ${TITLES[type]?.replace('New ', '').replace('Create ', '').replace('Record ', '').replace('Add ', '')}` : TITLES[type]}
+            </h2>
+            <p style={{ color: '#8C8578', fontSize: '0.75rem', marginTop: 3 }}>
+              {editing ? 'Update the details below' : 'Fill in the details below'}
+            </p>
           </div>
           <button onClick={onClose} style={{
             width: 30, height: 30, borderRadius: 8, border: 'none',
@@ -136,6 +234,8 @@ export default function AddModal({ type, onClose, onSave }) {
           <form id="modal-form" onSubmit={handleSubmit(onSubmit)}>
             {type === 'transaction' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {/* keep transaction type in form values for zod validation */}
+                <input type="hidden" value={txType} {...register('type')} />
                 <TypeToggle
                   options={[{ value: 'expense', label: 'Expense', color: '#EF4444' }, { value: 'income', label: 'Income', color: '#22C55E' }]}
                   value={txType} onChange={setTxType}
@@ -143,20 +243,20 @@ export default function AddModal({ type, onClose, onSave }) {
                 <div>
                   <label className="label">Title / Description</label>
                   <input className="input-field" placeholder="e.g. Monthly salary, Netflix subscription"
-                    {...register('title', { required: 'Title is required' })} />
+                    {...register('title')} />
                   {errors.title && <p className="error-msg">{errors.title.message}</p>}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
                     <label className="label">Amount ({sym})</label>
                     <input type="number" step="0.01" min="0.01" className="input-field" placeholder="0.00"
-                      {...register('amount', { required: 'Amount is required', min: { value: 0.01, message: 'Must be > 0' } })} />
+                      {...register('amount')} />
                     {errors.amount && <p className="error-msg">{errors.amount.message}</p>}
                   </div>
                   <div>
                     <label className="label">Date</label>
                     <input type="date" className="input-field"
-                      {...register('date', { required: 'Date is required' })} />
+                      {...register('date')} />
                     {errors.date && <p className="error-msg">{errors.date.message}</p>}
                   </div>
                 </div>
@@ -164,11 +264,19 @@ export default function AddModal({ type, onClose, onSave }) {
                   <label className="label">
                     Category — <span style={{ color: txType === 'income' ? '#22C55E' : '#EF4444', textTransform: 'capitalize' }}>{txType}</span>
                   </label>
-                  <select className="input-field" {...register('category', { required: 'Category is required' })}>
+                  <select className="input-field" {...register('category')}>
                     <option value="">Select a category</option>
                     {categories.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
                   {errors.category && <p className="error-msg">{errors.category.message}</p>}
+                </div>
+                <div>
+                  <label className="label">From Account (optional)</label>
+                  <select className="input-field" {...register('accountId')}>
+                    <option value="">No account linked</option>
+                    {accounts.map((acc) => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
+                  </select>
+                  {errors.accountId && <p className="error-msg">{errors.accountId.message}</p>}
                 </div>
               </div>
             )}
@@ -177,7 +285,7 @@ export default function AddModal({ type, onClose, onSave }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div>
                   <label className="label">Category</label>
-                  <select className="input-field" {...register('category', { required: 'Category is required' })}>
+                  <select className="input-field" {...register('category')}>
                     <option value="">Select a category</option>
                     {EXPENSE_CATS.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
@@ -186,7 +294,7 @@ export default function AddModal({ type, onClose, onSave }) {
                 <div>
                   <label className="label">Monthly Limit ({sym})</label>
                   <input type="number" step="0.01" min="1" className="input-field" placeholder="0.00"
-                    {...register('budgetLimit', { required: 'Limit is required', min: { value: 1, message: 'Must be > 0' } })} />
+                    {...register('budgetLimit')} />
                   {errors.budgetLimit && <p className="error-msg">{errors.budgetLimit.message}</p>}
                 </div>
                 <div>
@@ -201,13 +309,13 @@ export default function AddModal({ type, onClose, onSave }) {
                 <div>
                   <label className="label">Account Name</label>
                   <input className="input-field" placeholder="e.g. Chase Checking, PayPal"
-                    {...register('name', { required: 'Name is required' })} />
+                    {...register('name')} />
                   {errors.name && <p className="error-msg">{errors.name.message}</p>}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
                     <label className="label">Type</label>
-                    <select className="input-field" {...register('accountType', { required: 'Type is required' })}>
+                    <select className="input-field" {...register('accountType')}>
                       <option value="">Select type</option>
                       {ACCOUNT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                     </select>
@@ -228,6 +336,8 @@ export default function AddModal({ type, onClose, onSave }) {
 
             {type === 'loan' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {/* keep loan type in form values for zod validation */}
+                <input type="hidden" value={loanType} {...register('type')} />
                 <TypeToggle
                   options={[{ value: 'lent', label: 'I Lent Money', color: '#22C55E' }, { value: 'owed', label: 'I Owe Money', color: '#EF4444' }]}
                   value={loanType} onChange={setLoanType}
@@ -236,20 +346,20 @@ export default function AddModal({ type, onClose, onSave }) {
                   <div>
                     <label className="label">Person / Entity</label>
                     <input className="input-field" placeholder="Name of person or company"
-                      {...register('personName', { required: 'Name is required' })} />
+                      {...register('personName')} />
                     {errors.personName && <p className="error-msg">{errors.personName.message}</p>}
                   </div>
                   <div>
                     <label className="label">Amount ({sym})</label>
                     <input type="number" step="0.01" min="0.01" className="input-field" placeholder="0.00"
-                      {...register('amount', { required: 'Amount is required', min: { value: 0.01, message: 'Must be > 0' } })} />
+                      {...register('amount')} />
                     {errors.amount && <p className="error-msg">{errors.amount.message}</p>}
                   </div>
                 </div>
                 <div>
                   <label className="label">Date</label>
                   <input type="date" className="input-field"
-                    {...register('date', { required: 'Date is required' })} />
+                    {...register('date')} />
                   {errors.date && <p className="error-msg">{errors.date.message}</p>}
                 </div>
                 <div>
@@ -272,7 +382,7 @@ export default function AddModal({ type, onClose, onSave }) {
             className="btn-primary" style={{ flex: 2, justifyContent: 'center', opacity: loading ? 0.65 : 1 }}>
             {loading
               ? <><span style={{ width: 14, height: 14, border: '2px solid rgba(10,8,5,0.3)', borderTopColor: '#0A0805', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />Saving...</>
-              : 'Save'}
+              : editing ? 'Update' : 'Save'}
           </button>
         </div>
       </div>

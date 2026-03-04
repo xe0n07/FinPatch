@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate, Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import logo from '../assets/logo1.png';
 
 const EyeIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
@@ -43,9 +44,7 @@ const Register = () => {
     <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-bg py-10">
       <div className="w-full max-w-sm animate-fade-up">
         <div className="flex flex-col items-center gap-3 mb-8">
-          <div className="w-16 h-16 rounded-[18px] bg-card border border-border flex items-center justify-center">
-            <span className="text-2xl font-bold text-accent">fp</span>
-          </div>
+          <img src={logo} alt="FinPatch logo" className="w-16 h-16 object-contain" />
           <div className="text-center">
             <h1 className="text-2xl font-bold text-text-primary">Create Account</h1>
             <p className="text-text-secondary text-sm mt-1">Start tracking your finances</p>
