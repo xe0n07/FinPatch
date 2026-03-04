@@ -1,18 +1,24 @@
 import './App.css';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import HomePage from './components/HomePage';
-import Login from './components/Login';
-import Register from './components/Register';
+import LandingPage    from './components/LandingPage';
+import Login          from './components/Login';
+import Register       from './components/Register';
 import ForgotPassword from './components/ForgotPassword';
-import Onboarding from './components/Onboarding';
-import Dashboard from './components/Dashboard';
+import Onboarding     from './components/Onboarding';
+import Dashboard      from './components/Dashboard';
 
 const Spinner = () => (
-  <div className="flex items-center justify-center min-h-screen bg-bg">
-    <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#0A0805' }}>
+    <div style={{ width: 32, height: 32, border: '2.5px solid #F4927A', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
   </div>
 );
+
+/* Landing page: show always (logged-in users see dashboard link in nav) */
+const LandingRoute = ({ children }) => {
+  return children;
+};
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -30,6 +36,7 @@ const OnboardingRoute = ({ children }) => {
   return children;
 };
 
+/* Auth-only pages (login, register) redirect logged-in users */
 const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <Spinner />;
@@ -40,13 +47,13 @@ const PublicRoute = ({ children }) => {
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<PublicRoute><HomePage /></PublicRoute>} />
-      <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-      <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+      <Route path="/"               element={<LandingPage />} />
+      <Route path="/login"          element={<PublicRoute><Login /></PublicRoute>} />
+      <Route path="/register"       element={<PublicRoute><Register /></PublicRoute>} />
       <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
-      <Route path="/onboarding" element={<OnboardingRoute><Onboarding /></OnboardingRoute>} />
-      <Route path="/dashboard/*" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/onboarding"     element={<OnboardingRoute><Onboarding /></OnboardingRoute>} />
+      <Route path="/dashboard/*"    element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="*"               element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
