@@ -32,7 +32,7 @@ function Sidebar({ onClose, tab, onNav, user, onLogout }) {
     root: { width: SIDEBAR_W, height: '100%', display: 'flex', flexDirection: 'column', background: '#0f0d0a', borderRight: '1px solid #1E1A14', flexShrink: 0 },
     header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 14px', borderBottom: '1px solid #1E1A14', flexShrink: 0 },
     logoWrap: { display: 'flex', alignItems: 'center', gap: 9 },
-    logoBox: { width: 32, height: 32, borderRadius: 9, background: '#F4927A', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(244,146,122,0.32)', flexShrink: 0 },
+    logoBox: { width: 32, height: 32, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(244,146,122,0.32)', flexShrink: 0 },
     nav: { flex: 1, padding: '12px 8px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1 },
     footer: { padding: '8px 8px', borderTop: '1px solid #1E1A14', flexShrink: 0 },
   };
